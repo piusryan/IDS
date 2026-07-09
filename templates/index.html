@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Packet Sniffer IDS Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: radial-gradient(circle at top left, #0f0f1a, #000);
+            color: #eee;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            text-align: center;
+            color: #0ff;
+            text-shadow: 0 0 10px #0ff, 0 0 20px #09f;
+            padding: 20px;
+        }
+        .container {
+            width: 90%;
+            max-width: 1000px;
+            margin: auto;
+            margin-top: 20px;
+            background: rgba(20, 20, 40, 0.9);
+            border: 1px solid #0ff;
+            border-radius: 15px;
+            box-shadow: 0 0 25px #0ff;
+            padding: 20px;
+        }
+        .alerts {
+            background: rgba(40, 0, 0, 0.8);
+            border: 1px solid red;
+            box-shadow: 0 0 20px red;
+            color: #ff4444;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            display: none;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            text-align: center;
+        }
+        th {
+            background: rgba(0, 255, 255, 0.15);
+            color: #0ff;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        tr:nth-child(even) { background: rgba(255, 255, 255, 0.02); }
+        tr:hover { background: rgba(0, 255, 255, 0.1); }
+    </style>
+    <script>
+        async function fetchPackets() {
+            let response = await fetch("/packets");
+            let packets = await response.json();
+            let tableBody = document.getElementById("packetTable");
+            tableBody.innerHTML = "";
+            packets.forEach(p => {
+                let row = `<tr><td>${p.src}</td><td>${p.dst}</td><td>${p.proto}</td></tr>`;
+                tableBody.innerHTML += row;
+            
+            });
+
+        }
+
+        async function fetchAlerts() {
+            let response = await fetch("/alerts");
+            let alerts = await response.json();
+            let alertBox = document.getElementById("alertBox");
+
+            if (alerts.length > 0) {
+                alertBox.style.display = "block";
+                alertBox.innerHTML = alerts.join("<br>");
+                playAlarm();
+            }
+        }
+
+        function playAlarm() {
+            let audio = document.getElementById("alarmSound");
+            audio.play();
+        }
+
+        setInterval(fetchPackets, 2000);
+        setInterval(fetchAlerts, 2000);
+        window.onload = () => { fetchPackets(); fetchAlerts(); }
+    </script>
+</head>
+<body>
+    <h1>🛡️ Intrusion Detection Dashboard</h1>
+    <div class="container">
+        <div id="alertBox" class="alerts"></div>
+      
+        <table>
+            <tr><th>Source IP</th><th>Destination IP</th><th>Protocol</th></tr>
+            <tbody id="packetTable"></tbody>
+        </table>
+        
+    </div>
+    <audio id="alarmSound" src="https://www.soundjay.com/buttons/sounds/beep-07.mp3"></audio>
+</body>
+</html>

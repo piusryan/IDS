@@ -1,0 +1,54 @@
+from scapy.all import sniff, IP, TCP, UDP, ICMP
+import threading, time
+from collections import defaultdict
+
+captured_packets = []   # Shared list of packets for dashboard
+alerts = []             # Stores intrusion alerts
+
+# Example known malicious IPs
+malicious_ips = {"192.168.1.100", "10.10.10.5"}
+
+# Signature rules
+signatures = {
+    "Malicious IP": lambda pkt: pkt.haslayer(IP) and pkt[IP].src in malicious_ips,
+    "ICMP Flood": lambda pkt: pkt.haslayer(ICMP),
+    "Suspicious TCP Flags": lambda pkt: pkt.haslayer(TCP) and pkt[TCP].flags == 0x29,  # Xmas scan
+    "Port 23 (Telnet) Traffic": lambda pkt: pkt.haslayer(TCP) and pkt[TCP].dport == 23,
+    "UDP to port 69 (TFTP)": lambda pkt: pkt.haslayer(UDP) and pkt[UDP].dport == 69
+}
+
+def packet_callback(packet):
+    if packet.haslayer(IP):
+        src_ip = packet[IP].src
+        dst_ip = packet[IP].dst
+
+        # Detect protocol
+        if packet.haslayer(TCP):
+            proto = "TCP"
+        elif packet.haslayer(UDP):
+            proto = "UDP"
+        elif packet.haslayer(ICMP):
+            proto = "ICMP"
+        else:
+            proto = "OTHER"
+
+        # Store packet info (keep only last 50)
+        captured_packets.append({"src": src_ip, "dst": dst_ip, "proto": proto})
+        if len(captured_packets) > 10:
+            captured_packets.pop(0)
+
+        # Check against signatures
+        for sig_name, rule in signatures.items():
+            try:
+                if rule(packet):  # If packet matches signature
+                    alert_msg = f"🚨 Signature Alert: {sig_name} detected from {src_ip} → {dst_ip}"
+                    if alert_msg not in alerts:
+                        alerts.append(alert_msg)
+                        if len(alerts) > 10:
+                            alerts.pop(0)
+                        print(alert_msg)
+            except Exception as e:
+                print("Error in signature check:", e)
+
+def start_sniffing():
+    sniff(filter="ip", prn=packet_callback, store=False)
